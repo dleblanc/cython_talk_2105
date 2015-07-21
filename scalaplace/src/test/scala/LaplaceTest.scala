@@ -3,6 +3,11 @@ import org.scalatest.matchers.ShouldMatchers
 
 class LaplaceTest extends FunSuite with Matchers {
 
+  test("(Java) single threaded laplace performance test") {
+
+    runTestsOn("single threaded laplace", JLaplace.laplace)
+  }
+
   test("single threaded laplace performance test") {
 
     runTestsOn("single threaded laplace", Laplace.laplace)
@@ -23,24 +28,22 @@ class LaplaceTest extends FunSuite with Matchers {
     val arr = Array.fill(size)(
       Array.fill(size)(0.0)
     )
+    resetArr(arr)
 
+    // Warm up the JIT
     (1 to 10).foreach { _ =>
-      resetArr(arr)
       laplaceFunc(arr, dx2, dy2)
     }
 
-    var totalDuration = 0l
+    resetArr(arr)
+
+    // Run the actual tests
     val iterations = 10
-    (1 to iterations).foreach { _ =>
-
-      resetArr(arr)
-      val start = System.currentTimeMillis()
-      Laplace.laplace(arr, dx2, dy2)
-
-      totalDuration += System.currentTimeMillis() - start
+    val duration = timeToRun {
+      (1 to iterations).foreach { _ => laplaceFunc(arr, dx2, dy2) }
     }
 
-    print("Avg time per iteration for %s: %2.2f".format(named, totalDuration / iterations.toDouble))
+    print("Avg time per iteration for %s: %2.2f".format(named, duration / iterations.toDouble))
   }
 
   def resetArr(arr: Array[Array[Double]]): Unit = {
@@ -51,6 +54,15 @@ class LaplaceTest extends FunSuite with Matchers {
       arr(i)(j) = 0
     }
 
-    arr(0)(0) = 1.0
+    // Set the first row to all 1's
+    for (i <- arr(0).indices) {arr(0)(i) = 1.0}
   }
+
+  def timeToRun(func: => Unit): Long = {
+
+    val start = System.currentTimeMillis()
+    func
+    System.currentTimeMillis() - start
+  }
+
 }
